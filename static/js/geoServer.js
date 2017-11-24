@@ -9,7 +9,7 @@ http.createServer(function(req, res){
     };
     res.writeHead(200, options);
 
-    osmGeoJson.get('365331').then((GeoJson) => {
+    osmGeoJson.get('270056').then((GeoJson) => {
         res.write(JSON.stringify(GeoJson));
         res.end();
     })
