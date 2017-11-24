@@ -7,8 +7,13 @@ L.AnimatedMarker = L.Marker.extend({
       // animate on add?
       autoStart: true,
       // callback onend
-      onEnd: function(){},
-      clickable: false
+      onEnd: function(){
+        if (L.DomUtil.TRANSITION) {
+            if (this._icon) { this._icon.style.transition = ''; }
+            if (this._shadow) { this._shadow.style.transition = ''; }
+        }
+      },
+        clickable: false
     },
 
     initialize: function (latlngs, options) {
@@ -62,13 +67,14 @@ L.AnimatedMarker = L.Marker.extend({
 
       // Normalize the transition speed from vertex to vertex
       if (this._i < len && this._i > 0) {
-        speed = this._latlngs[this._i-1].distanceTo(this._latlngs[this._i]) / this.options.distance * this.options.interval;
+
+        speed = L.latLng(this._latlngs[this._i-1]).distanceTo(L.latLng(this._latlngs[this._i])) / this.options.distance * this.options.interval;
       }
 
       // Only if CSS3 transitions are supported
       if (L.DomUtil.TRANSITION) {
-        if (this._icon) { this._icon.style[L.DomUtil.TRANSITION] = ('all ' + speed + 'ms linear'); }
-        if (this._shadow) { this._shadow.style[L.DomUtil.TRANSITION] = 'all ' + speed + 'ms linear'; }
+        if (this._icon) { this._icon.style[L.DomUtil.TRANSITION] = 'all ' + speed + 'ms ease'; }
+        if (this._shadow) { this._shadow.style[L.DomUtil.TRANSITION] = 'all ' + speed + 'ms ease'; }
       }
 
       // Move to the next vertex
@@ -96,7 +102,15 @@ L.AnimatedMarker = L.Marker.extend({
         clearTimeout(this._tid);
       }
     },
-
+    hide(param) {
+        if(param) {
+            if (this._icon) { this._icon.style.opacity = 0; }
+            if (this._shadow) { this._shadow.style.opacity = 0; }
+        } else {
+            if (this._icon) { this._icon.style.opacity = 1; }
+            if (this._shadow) { this._shadow.style.opacity = 1; }
+        }
+    },
     setLine: function(latlngs){
       if (L.DomUtil.TRANSITION) {
         // No need to to check up the line if we can animate using CSS3

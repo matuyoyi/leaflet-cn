@@ -85,7 +85,7 @@ L.CRS.EPSGB3857 = L.extend({}, L.CRS, {
  */
 L.TileLayer.BaiduLayer = L.TileLayer.extend({
     statics: {
-        attribution: '© 2014 Baidu - GS(2012)6003;- Data © <a target="_blank" href="http://www.google.com/">ChenNan</a>'
+        attribution: '© <a target="_blank" href="http://www.google.com/">OpenStreetMap</a> contributors © <a target="_blank" href="http://www.google.com/">ChenNan Developer</a>'
     },
 
     options: {
@@ -101,6 +101,9 @@ L.TileLayer.BaiduLayer = L.TileLayer.extend({
             mapType = parts[1],
             mapStyle = parts[2];
         var url = desc[mapName][mapType];
+        if(mapName === 'openStreetMap') {
+            return
+        }
         if(mapName === 'CustomStyle') {
           if(mapStyle) {
             url = url+'&customid='+mapStyle;
@@ -141,10 +144,6 @@ L.TileLayer.BaiduLayer.desc = {
     },
     openStreetMap: {
         Map: 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    },
-    mapbox: {
-        Map: 'https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}',
-        accessToken: 'pk.eyJ1IjoibWFpZGV6IiwiYSI6ImNqOWdyaHpqZTJ4Y2MzMm5ya2ViMnJoMTIifQ.TtCnerabA7E7z-wcLNxzRQ'
     },
     subdomains: '0123456789'
 };

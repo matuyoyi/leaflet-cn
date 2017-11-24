@@ -2,14 +2,14 @@
     <div style="width:100%;height:100%" class="wrapper">
         <div id="map" style="width:100%;height:100%"></div>
         <div class="tools">
-            <el-button size="small" @click="handleLocate">定位</el-button>
             <el-button size="small" @click="antPath">antPath</el-button>
             <el-button size="small" @click="heatmap">heatmap</el-button>
             <el-button size="small" @click="ranging">测距</el-button>
             <el-button size="small" @click="drawArrowLine">DrawLine</el-button>
-            <el-button size="small" @click="drawPolygon">drawPolygon</el-button>
             <el-button size="small" @click="drawCircle">drawCircle</el-button>
             <el-button size="small" @click="dynamicTrajectory">动态轨迹</el-button>
+            <el-button size="small" @click="geoJson">geoJson</el-button>
+            <el-button size="small" @click="test">test</el-button>
             <el-button size="small" @click="clear">clear</el-button>
         </div>
     </div>
@@ -63,6 +63,7 @@ export default {
         this.$nextTick(() => {
 
             let center = [32.009323, 118.799246]
+            this.center = center;
             const markerIcon = L.icon({
                 iconUrl: markerIconUrl,
                 iconSize: [25, 41],
@@ -77,7 +78,6 @@ export default {
                 padding: 0.3,
                 className: 'linePath'
             })
-
 
 
             var options = {
@@ -103,8 +103,6 @@ export default {
                 grayscale: new L.TileLayer.BaiduLayer("CustomStyle.Map.grayscale"),
                 hardedge: new L.TileLayer.BaiduLayer("CustomStyle.Map.hardedge"),
                 tianwang: new L.TileLayer.BaiduLayer("tianwang.Map"),
-                openStreetMap: new L.TileLayer.BaiduLayer("openStreetMap.Map"),
-                mapbox: new L.TileLayer.BaiduLayer("mapbox.Map"),
             };
             const marker = L.marker(center, {
                 icon: markerIcon,
@@ -112,7 +110,7 @@ export default {
             })
             this.marker = marker;
             var overlayMaps = {
-                Office: marker.bindPopup('I\'m working Nanjing!')
+                Office: marker.bindPopup('the stack of nerds!')
             };
 
             options.layers = [baseMaps.Normal, overlayMaps.Office];
@@ -120,17 +118,11 @@ export default {
 
             this.map = map;
             this.renderer = renderer;
-            L.control.layers(baseMaps, overlayMaps).addTo(map);
+            const control = L.control.layers(baseMaps, overlayMaps).addTo(map);
             marker.openPopup()
+
             // leaflet use geojson
-            this.$http.get('http://127.0.0.1:3000/').then((res) => {
-                var geojsonFeature = res.data;
-                L.geoJSON(geojsonFeature).addTo(map);
 
-                var myLayer = L.geoJSON().addTo(map);
-                myLayer.addData(geojsonFeature);
-
-            })
             /* var geojsonFeature = {
                 "type": "Feature",
                 "properties": {
@@ -200,7 +192,13 @@ export default {
                 imageBounds = [[32.712216, 119.22655], [32.773941, 119.12544]];
             L.imageOverlay(imageUrl, imageBounds).addTo(map); */
 
-
+            var tileLayer = new BMap.TileLayer();
+            tileLayer.getTilesUrl = function(tileCoord, zoom) {
+                var x = tileCoord.x;
+                var y = tileCoord.y;
+                var url = 'http://lbsyun.baidu.com/jsdemo/demo/tiles/' + zoom + '/tile' + x + '_' + y + '.png';     //根据当前坐标，选取合适的瓦片图
+                return url;
+            }
 
 
         function animateFun() {
@@ -305,7 +303,7 @@ for (var i = 1; i < coordinates.length; i++) {
 
 
 
-
+this.handleLocate()
 
 // **************************end***************************
         })
@@ -341,7 +339,6 @@ for (var i = 1; i < coordinates.length; i++) {
                     linePath.splice(-1, 1, latlng);
                 }
                 polyline.setLatLngs(linePath)
-                console.log(polyline)
             }
 
         },
@@ -382,19 +379,19 @@ for (var i = 1; i < coordinates.length; i++) {
         drawArrowLine() {
             const self = this;
 
-            var multiCoords1 = [
+            var multiCoords = [
                 [[31.5468, 116], [33.8068, 118.1318], [34.1242, 119.6699]]
             ];
             var plArray = [];
-            for(var i=0; i<multiCoords1.length; i++) {
-                plArray.push(L.polyline(multiCoords1[i]).addTo(self.map));
+            for(var i=0; i<multiCoords.length; i++) {
+                plArray.push(L.polyline(multiCoords[i]).addTo(self.map));
             }
-            L.polylineDecorator(multiCoords1, {
+            L.polylineDecorator(multiCoords, {
                 patterns: [
                     {offset: 25, repeat: 100, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 0}})}
                 ]
             }).addTo(self.map);
-            const swoopy = L.swoopyArrow(center, [33,119], {
+            const swoopy = L.swoopyArrow(this.center, [33,119], {
                 annotation: 'Hi!',
                 fontSize: 16,
                 iconAnchor: [20, 10],
@@ -449,10 +446,6 @@ for (var i = 1; i < coordinates.length; i++) {
                 .addTo(this.map); */
         },
         heatmap() {
-            console.log(this.map.hasLayer(heatmapLayer))
-            this.map.eachLayer(function(layer) {
-                console.log(layer)
-            })
             this.removeEvent()
             const statesData = createData(20000, 0.015);
             const heatmapConfig = {
@@ -502,6 +495,23 @@ for (var i = 1; i < coordinates.length; i++) {
                 })
             })
         },
+        geoJson() {
+            const loading= this.$loading({
+                lock: true,
+                text: 'Loading',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.6)'
+            });
+            this.$http.get('http://127.0.0.1:3000/').then((res) => {
+                loading.close();
+                var geojsonFeature = res.data;
+                L.geoJSON(geojsonFeature).addTo(this.map);
+
+                var myLayer = L.geoJSON().addTo(this.map);
+                myLayer.addData(geojsonFeature);
+                this.map.setView([32.009323, 118.799246], 5)
+            })
+        },
         removeEvent() {
             if(this.map._events.click) {
                 this.map._events.click.splice(0);
@@ -514,59 +524,75 @@ for (var i = 1; i < coordinates.length; i++) {
             }
         },
         handleLocate() {
-            const map = this.map
-            map.locate({
-                setView: true,
-            })
+            const map = this.map;
+            var geolocation = new BMap.Geolocation();
+            geolocation.getCurrentPosition(function(r){
+                if(this.getStatus() == BMAP_STATUS_SUCCESS){
+                    var mk = new BMap.Marker(r.point);
+                    map.panTo(mk.point);
+                }
+                else {
+                    alert('failed'+this.getStatus());
+                }
+            },{enableHighAccuracy: true})
         },
         dynamicTrajectory() {
+            if(this.map.hasLayer(this.animatedMarker)) {
+                this.map.removeLayer(this.animatedMarker);
+                return;
+            }
             const self = this;
             let marker;
             const markerPos = [[32.050943,118.748092], [32.101855,118.817945], [32.035762, 118.820244], [32.004903,118.878886], [31.960309, 118.776263], [31.981383, 118.854739]]
+
+            // add marker
             for(let i = 0; i < markerPos.length; i++) {
-                if(i > 0) {
-                    L.layerGroup([L.marker(markerPos[i], {
-                        icon: this.markerIcon
-                    })])
-                    .addLayer(marker)
-                    .addTo(this.map);
-                } else {
-                    marker = L.marker(markerPos[i], {
-                        icon: this.markerIcon
-                    }).addTo(this.map)
-                }
+                L.marker(markerPos[i], {
+                    icon: this.markerIcon
+                }).addTo(this.map);
             }
-            var multiCoords1 = [
+            var multiCoords = [
                 markerPos
             ];
             var plArray = [];
-            for(var i=0; i<multiCoords1.length; i++) {
-                plArray.push(L.polyline(multiCoords1[i]).addTo(self.map));
+            for(var i = 0; i < multiCoords.length; i++) {
+                plArray.push(L.polyline(multiCoords[i]).addTo(self.map));
             }
-            L.polylineDecorator(multiCoords1, {
+
+            // add arrow path
+            L.polylineDecorator(multiCoords, {
                 patterns: [
                     {offset: 25, repeat: 100, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 0}})}
                 ]
             }).addTo(self.map);
-            _.each(markerPos, function(routeLine) {
-                var pig = L.animatedMarker(routeLine.getLatLngs(), {
-                    icon: this.pig,
-                    autoStart: true,
-                    onEnd: function() {
-                        $(this._shadow).fadeOut();
-                        $(this._icon).fadeOut(3000, function(){
-                            map.removeLayer(this);
-                        });
-                    }
-                })
-            })
-            map.addLayer(marker);
             const markers = [];
-            markers.push(marker);
-            _.each()
-            _.each(markers, function(marker) {
-                marker.start();
+
+            // add animated marker
+            const animatedMarker = L.animatedMarker(markerPos, {
+                icon: this.pig,
+                autoStart: false,
+                distance: 6000,
+            }).addTo(this.map);
+            this.animatedMarker = animatedMarker;
+            //this.map.addLayer(this.animatedMarker)
+            //animatedMarker.start()
+            this.map.on('click', () => {
+                animatedMarker.start()
+            })
+            this.map.on("zoomstart", function (e) {
+                animatedMarker.hide(true)
+            })
+            this.map.on("zoomend", function (e) {
+                animatedMarker.hide()
             });
+        },
+        test() {
+            var beijingPosition=new BMap.Point(116.432045,39.910683),
+            hangzhouPosition=new BMap.Point(120.129721,30.314429),
+            taiwanPosition=new BMap.Point(121.491121,25.127053);
+            var points = [beijingPosition,hangzhouPosition, taiwanPosition];
+            /* curve.addTo(this.map); //添加到地图中
+            curve.enableEditing(); //开启编辑功能 */
         }
     }
 };
