@@ -56,6 +56,51 @@ function createData(gross, radius) {
         data: points,
     };
 }
+function animateFun() {
+    var canvas, context;
+
+    init();
+    animate();
+
+    function init() {
+
+        canvas = document.createElement( 'canvas' );
+        canvas.width = 256;
+        canvas.height = 256;
+        canvas.style.position = 'absolute';
+        canvas.style.bottom = 0;
+        canvas.style.zIndex = 10000;
+
+        context = canvas.getContext( '2d' );
+
+        document.body.appendChild( canvas );
+
+    }
+
+    function animate() {
+
+        requestAnimationFrame( animate );
+        draw();
+
+    }
+
+    function draw() {
+
+        var time = new Date().getTime() * 0.002;
+        var x = Math.sin( time ) * 96 + 128;
+        var y = Math.cos( time * 0.9 ) * 96 + 128;
+
+        context.fillStyle = 'rgb(245,245,245)';
+        context.fillRect( 0, 0, 255, 255 );
+
+        context.fillStyle = 'rgb(255,0,0)';
+        context.beginPath();
+        context.arc( x, y, 10, 0, Math.PI * 2, true );
+        context.closePath();
+        context.fill();
+
+    }
+}
 
 export default {
     mounted() {
@@ -121,50 +166,6 @@ export default {
             const control = L.control.layers(baseMaps, overlayMaps).addTo(map);
             marker.openPopup()
 
-            // leaflet use geojson
-
-            /* var geojsonFeature = {
-                "type": "Feature",
-                "properties": {
-                    "name": "Coors Field",
-                    "amenity": "Baseball Stadium",
-                    "popupContent": "This is where the Rockies play!"
-                },
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [-104.99404, 39.75621]
-                }
-            };
-            L.geoJSON(geojsonFeature).addTo(map);
-            var myLines = [{
-                "type": "LineString",
-                "coordinates": [[-100, 40], [-105, 45], [-110, 55]]
-            }, {
-                "type": "LineString",
-                "coordinates": [[-105, 40], [-110, 45], [-115, 55]]
-            }];
-            var myLayer = L.geoJSON().addTo(map);
-            myLayer.addData(geojsonFeature);
-            var myLines = [{
-                "type": "LineString",
-                "coordinates": [[-100, 40], [-105, 45], [-110, 55]]
-            }, {
-                "type": "LineString",
-                "coordinates": [[-105, 40], [-110, 45], [-115, 55]]
-            }];
-
-            var myStyle = {
-                "color": "#ff7800",
-                "weight": 5,
-                "opacity": 0.65
-            };
-
-            L.geoJSON(myLines, {
-                style: myStyle
-            }).addTo(map); */
-
-
-
             this.map.on('keypress ', (e) => {
                 this.map.dragging.enable()
                 if(e.originalEvent.code === 'Space') {
@@ -180,130 +181,6 @@ export default {
 
                 }
             })
-
-
-
-
-
-
-
-
-            /* var imageUrl = 'http://www.lib.utexas.edu/maps/historical/newark_nj_1922.jpg',
-                imageBounds = [[32.712216, 119.22655], [32.773941, 119.12544]];
-            L.imageOverlay(imageUrl, imageBounds).addTo(map); */
-
-            var tileLayer = new BMap.TileLayer();
-            tileLayer.getTilesUrl = function(tileCoord, zoom) {
-                var x = tileCoord.x;
-                var y = tileCoord.y;
-                var url = 'http://lbsyun.baidu.com/jsdemo/demo/tiles/' + zoom + '/tile' + x + '_' + y + '.png';     //根据当前坐标，选取合适的瓦片图
-                return url;
-            }
-
-
-        function animateFun() {
-            var canvas, context;
-
-            init();
-            animate();
-
-            function init() {
-
-                canvas = document.createElement( 'canvas' );
-                canvas.width = 256;
-                canvas.height = 256;
-                canvas.style.position = 'absolute';
-                canvas.style.bottom = 0;
-                canvas.style.zIndex = 10000;
-
-                context = canvas.getContext( '2d' );
-
-                document.body.appendChild( canvas );
-
-            }
-
-            function animate() {
-
-                requestAnimationFrame( animate );
-                draw();
-
-            }
-
-            function draw() {
-
-                var time = new Date().getTime() * 0.002;
-                var x = Math.sin( time ) * 96 + 128;
-                var y = Math.cos( time * 0.9 ) * 96 + 128;
-
-                context.fillStyle = 'rgb(245,245,245)';
-                context.fillRect( 0, 0, 255, 255 );
-
-                context.fillStyle = 'rgb(255,0,0)';
-                context.beginPath();
-                context.arc( x, y, 10, 0, Math.PI * 2, true );
-                context.closePath();
-                context.fill();
-
-            }
-        }
-
-    var coordinates = [
-    [21.1500, 79.0900],
-    [18.948932, 72.776714],
-    [28.6139, 77.2090],
-    [25.6000, 85.1000],
-    [17.3700, 83.4800]
-];
-
-var arrowIcon = L.icon({
-    iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IArs4c6QAAAAlwSFlzAAALEwAACxMBAJqcGAAAAVlpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IlhNUCBDb3JlIDUuNC4wIj4KICAgPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4KICAgICAgPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIKICAgICAgICAgICAgeG1sbnM6dGlmZj0iaHR0cDovL25zLmFkb2JlLmNvbS90aWZmLzEuMC8iPgogICAgICAgICA8dGlmZjpPcmllbnRhdGlvbj4xPC90aWZmOk9yaWVudGF0aW9uPgogICAgICA8L3JkZjpEZXNjcmlwdGlvbj4KICAgPC9yZGY6UkRGPgo8L3g6eG1wbWV0YT4KTMInWQAAAdpJREFUOBGFVDtOA0EMnewGCS7ACeAYUIISEtpAxRGgRaLlFijiFkCAlgqJDokT0CAqJD7ZxLznsScT2GR35IzXnzdvbG9CWPZIKOhuS3u3lLKroWZbllbvyxIB9gB5TIGZL9kaFQltxoDdDsB8dTTPfI0YKUBCy3VA3SQ4Ke/cHrKYZFuoSFihD0AdBZtmv1L2NM9iFmIkR3YyYEYKJeUYO4XrPovVpqX3WmXGbs8ACDIx8Vrua24jy6x7APDa/UDnpSnUufJaLmFp3UNCzq5KcFJWBkjQvrHUafh/23p23wbgDAnktgaWM3bdjAVr52C+T9QSr+4d/8NyvrO3Buj1ciDfCeW+nGWa3YAh9bnrNbBzUDL35SwVowBYge9ibEU9sb1Se3wRbBMT6iTAzlaqhxBziKH2Gbt+OjN2kx3lMJOVL+q00Zd3PLHM2R3biV/KAV8edha7JUGeKNTNRh/ZfkL4xFy/KU7z2uW1oc4GHSJ1DbIK/QAyguTsfBLi/yXhEXAN8fWOD22Iv61t+uoe+LYQfQF5S1lSXmksDAMaCyleIGdgsjkHwhqz2FG0k8kvYQM5p5BnAx608HKOgNdpmF6iQh8aHOeS9atgi511lDofSlKE4ggh679ecGIXq+UAsgAAAABJRU5ErkJggg==',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-    popupAnchor: [-3, -76]
-});
-
-for (var i = 1; i < coordinates.length; i++) {
-
-    //Drawing simple line
-   /*  L.polyline([coordinates[0], coordinates[i]], {
-        color: 'green'
-    }).addTo(map); */
-
-    //Code for putting arrow with appropriate rotation
-    var firstPoint = coordinates[0].slice(),
-        secondPoint = coordinates[i].slice(),
-        slope = ((secondPoint[1] - firstPoint[1]) / (secondPoint[0] - firstPoint[0])),
-        angle = Math.atan(slope),
-        rotation;
-
-    //Shifting the graph Origin to point of start point
-    secondPoint[0] = secondPoint[0] - firstPoint[0];
-    secondPoint[1] = secondPoint[1] - firstPoint[1];
-
-	//Fourth quadrant
-    if (secondPoint[0] > 0 && secondPoint[1] < 0) {
-        rotation = (angle * 180/Math.PI)/2;
-    }
-    //Second quadrant
-    else if (secondPoint[0] < 0 && secondPoint[1] > 0) {
-        rotation = 180 + (angle * 180/Math.PI);
-    }
-    //Third quadrant
-    else if (secondPoint[0] < 0 && secondPoint[1] < 0) {
-        rotation =  180 + (angle * 180/Math.PI);
-    }
-    //First quadrant
-    else if (secondPoint[0] > 0 && secondPoint[1] > 0) {
-        rotation = (angle * 180/Math.PI);
-    }
-
-	// L.marker(coordinates[i], {icon: arrowIcon,iconAngle: rotation}).addTo(map);
-}
-
-
-
-
-this.handleLocate()
 
 // **************************end***************************
         })
@@ -441,9 +318,6 @@ this.handleLocate()
                     circleGroup[i].setRadius(circleR)
                 }, 300)
             }
-           /*  var layout = L.layerGroup(circleGroup)
-                .addLayer(this.polyline)
-                .addTo(this.map); */
         },
         heatmap() {
             this.removeEvent()
