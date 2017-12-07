@@ -89,8 +89,8 @@ L.TileLayer.BaiduLayer = L.TileLayer.extend({
     },
 
     options: {
-        minZoom: 3,
-        maxZoom: 19
+        minZoom: 2,
+        maxZoom: 15,
     },
 
     initialize: function (type, options) {

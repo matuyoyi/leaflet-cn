@@ -9,7 +9,7 @@
             <el-button size="small" @click="drawCircle">drawCircle</el-button>
             <el-button size="small" @click="dynamicTrajectory">动态轨迹</el-button>
             <el-button size="small" @click="geoJson">geoJson</el-button>
-            <el-button size="small" @click="test">test</el-button>
+            <el-button size="small" @click="test">{{state}}</el-button>
             <el-button size="small" @click="clear">clear</el-button>
         </div>
     </div>
@@ -103,10 +103,14 @@ function animateFun() {
 }
 
 export default {
+    data() {
+        return {
+            state: 'start',
+        }
+    },
     mounted() {
         const self = this;
         this.$nextTick(() => {
-
             let center = [32.009323, 118.799246]
             this.center = center;
             const markerIcon = L.icon({
@@ -128,7 +132,8 @@ export default {
             var options = {
                 crs: L.CRS.EPSGB3857,
                 center,
-                zoom: 12
+                zoom: 12,
+                doubleClickZoom: false
             };
 
             var baseMaps = {
@@ -155,7 +160,7 @@ export default {
             })
             this.marker = marker;
             var overlayMaps = {
-                Office: marker.bindPopup('the stack of nerds!')
+                Office: marker.bindPopup('hello world!')
             };
 
             options.layers = [baseMaps.Normal, overlayMaps.Office];
@@ -236,7 +241,8 @@ export default {
                     const distanceText = L.CRS.EPSG3857.distance(latlng, L.latLng(e.latlng.lat, e.latlng.lng))
                     if(distanceText) {
                         self.marker.bindTooltip((distanceText/1000).toFixed(2)+'km').openTooltip();
-                        self.marker.bindPopup((distanceText/1000).toFixed(2)+'km')
+                        self.marker.unbindPopup()
+                        //self.marker.bindPopup((distanceText/1000).toFixed(2)+'km')
                     }
 
                     if(flag) {
@@ -246,12 +252,13 @@ export default {
                     } else {
                         resLatLngs.splice(-1,1,L.latLng(e.latlng.lat, e.latlng.lng))
                         polyline.setLatLngs(resLatLngs)
-
                     }
-
+                })
+                self.marker.on('click', function() {
+                    self.map.dragging.enable();
+                    self.removeEvent()
                 })
             });
-
         },
         drawArrowLine() {
             const self = this;
@@ -411,12 +418,11 @@ export default {
             },{enableHighAccuracy: true})
         },
         dynamicTrajectory() {
-            if(this.map.hasLayer(this.animatedMarker)) {
-                this.map.removeLayer(this.animatedMarker);
+            if(this.map.hasLayer(this.trackMarker)) {
+                this.map.removeLayer(this.trackMarker);
                 return;
             }
             const self = this;
-            let marker;
             const markerPos = [[32.050943,118.748092], [32.101855,118.817945], [32.035762, 118.820244], [32.004903,118.878886], [31.960309, 118.776263], [31.981383, 118.854739]]
 
             // add marker
@@ -425,48 +431,39 @@ export default {
                     icon: this.markerIcon
                 }).addTo(this.map);
             }
-            var multiCoords = [
-                markerPos
-            ];
-            var plArray = [];
-            for(var i = 0; i < multiCoords.length; i++) {
-                plArray.push(L.polyline(multiCoords[i]).addTo(self.map));
-            }
-
-            // add arrow path
-            L.polylineDecorator(multiCoords, {
-                patterns: [
-                    {offset: 25, repeat: 100, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 0}})}
-                ]
-            }).addTo(self.map);
             const markers = [];
 
             // add animated marker
-            const animatedMarker = L.animatedMarker(markerPos, {
-                icon: this.pig,
-                autoStart: false,
-                distance: 6000,
-            }).addTo(this.map);
-            this.animatedMarker = animatedMarker;
-            //this.map.addLayer(this.animatedMarker)
-            //animatedMarker.start()
-            this.map.on('click', () => {
-                animatedMarker.start()
-            })
-            this.map.on("zoomstart", function (e) {
-                animatedMarker.hide(true)
-            })
-            this.map.on("zoomend", function (e) {
-                animatedMarker.hide()
+            var parisKievLL = markerPos;
+            var trackMarker = L.Marker.movingMarker(parisKievLL, [2000,2000,2000,2000,2000], {icon: this.pig}).addTo(self.map);
+            L.polyline(parisKievLL, {color: 'red'}).addTo(self.map);
+            trackMarker.once('click', function () {
+                trackMarker.start();
+                trackMarker.closePopup();
+                trackMarker.unbindPopup();
+                trackMarker.on('click', function() {
+                    if (trackMarker.isRunning()) {
+                        trackMarker.pause();
+                    } else {
+                        trackMarker.start();
+                    }
+                });
+                setTimeout(function() {
+                    trackMarker.bindPopup('<b>Click me to pause !</b>').openPopup();
+                }, 2000);
             });
+
+            trackMarker.bindPopup('<b>Click me to start !</b>').openPopup();
+            this.trackMarker = trackMarker;
         },
         test() {
-            var beijingPosition=new BMap.Point(116.432045,39.910683),
-            hangzhouPosition=new BMap.Point(120.129721,30.314429),
-            taiwanPosition=new BMap.Point(121.491121,25.127053);
-            var points = [beijingPosition,hangzhouPosition, taiwanPosition];
-            /* curve.addTo(this.map); //添加到地图中
-            curve.enableEditing(); //开启编辑功能 */
+            if (this.trackMarker.isRunning()) {
+                this.trackMarker.pause();
+                this.state = 'start';
+            } else {
+                this.trackMarker.start();
+                this.state = 'pause';
+            }
         }
     }
 };
