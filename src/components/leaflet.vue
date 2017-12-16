@@ -1,17 +1,6 @@
 <template>
     <div style="width:100%;height:100%" class="wrapper">
         <div id="map" style="width:100%;height:100%"></div>
-        <div class="tools">
-            <el-button size="small" @click="antPath">antPath</el-button>
-            <el-button size="small" @click="heatmap">heatmap</el-button>
-            <el-button size="small" @click="ranging">测距</el-button>
-            <el-button size="small" @click="drawArrowLine">DrawLine</el-button>
-            <el-button size="small" @click="drawCircle">drawCircle</el-button>
-            <el-button size="small" @click="dynamicTrajectory">动态轨迹</el-button>
-            <el-button size="small" @click="geoJson">geoJson</el-button>
-            <el-button size="small" @click="test">{{state}}</el-button>
-            <el-button size="small" @click="clear">clear</el-button>
-        </div>
     </div>
 </template>
 <script>
@@ -19,7 +8,6 @@ import L from 'leaflet';
 import HeatmapOverlay from 'leaflet-heatmap';
 import markerIconUrl from '../assets/single_marker.png';
 import polylineMarkerIcon from '../assets/polylineMarkerIcon.png';
-import pigIcon from '../assets/pig.png';
 import { AntPath, antPath } from 'leaflet-ant-path';
 import '../../static/js/leaflet-BMap.js';
 import '../../static/js/BMapAPI.js';
@@ -47,7 +35,7 @@ function createData(gross, radius) {
             lat: Math.random() * 3.5 + 30.3,     // 经度
             lng: Math.random() * 8.5 + 114,        // 纬度
             count: val,           // 数据量大小
-            radius: radius
+            radius: radius,
         };
         points.push(point);
     }
@@ -105,35 +93,31 @@ function animateFun() {
 export default {
     data() {
         return {
-            state: 'start',
+
         }
     },
     mounted() {
         const self = this;
         this.$nextTick(() => {
-            let center = [32.009323, 118.799246]
+            const center = [32.009323, 118.799246]
             this.center = center;
             const markerIcon = L.icon({
                 iconUrl: markerIconUrl,
                 iconSize: [25, 41],
             });
-            const pig = L.icon({
-                iconUrl: pigIcon,
+            const monvingIcon = L.icon({
+                iconUrl: '/static/images/movingMarker.png',
                 iconSize: [50, 50],
             });
             this.markerIcon = markerIcon;
-            this.pig = pig;
-            const renderer = L.svg({
-                padding: 0.3,
-                className: 'linePath'
-            })
+            this.monvingIcon = monvingIcon;
 
 
             var options = {
                 crs: L.CRS.EPSGB3857,
                 center,
                 zoom: 12,
-                doubleClickZoom: false
+                doubleClickZoom: false,
             };
 
             var baseMaps = {
@@ -159,17 +143,12 @@ export default {
                 riseOnHover: true,
             })
             this.marker = marker;
-            var overlayMaps = {
-                Office: marker.bindPopup('hello world!')
-            };
 
-            options.layers = [baseMaps.Normal, overlayMaps.Office];
+            options.layers = [baseMaps.Normal];
             const map = L.map("map", options);
 
             this.map = map;
-            this.renderer = renderer;
-            const control = L.control.layers(baseMaps, overlayMaps).addTo(map);
-            marker.openPopup()
+            const control = L.control.layers(baseMaps).addTo(map);
 
             this.map.on('keypress ', (e) => {
                 this.map.dragging.enable()
@@ -183,9 +162,119 @@ export default {
                     if(this.map._events.dblclick) {
                         this.map._events.dblclick = [];
                     }
-
+                    if(this.tempLine) {
+                        this.tempLine.remove();
+                    }
                 }
             })
+            const PanelControl = L.Control.extend({
+                initialize(options) {
+                    let opts = {};
+                    if(!options) {
+                        opts.position = 'bottomright';
+                        this.imgUrl = '';
+                    } else {
+                        opts = options.position || 'bottomright';
+                        this.imgUrl = options.imgUrl;
+                    }
+                    this.options = opts;
+                    this.flag = false;
+                },
+                onAdd() {
+                    this._container = L.DomUtil.create('div', 'leaflet-control-custom');
+                    var legendimg = document.createElement('img');
+                    legendimg.className = 'control-icon';
+                    legendimg.src = this.imgUrl;
+                    legendimg.style.cursor = 'pointer';
+                    this._legendimg = legendimg;
+                    this._container.appendChild(legendimg);
+                    L.DomEvent.on(this._container, 'click', (e) => {
+                        this.click();
+                        e.stopPropagation();
+                    })
+                    return this._container;
+                },
+                updateUrl() {
+                    this.flag = !this.flag;
+                    this._legendimg.src = this.imgUrl;
+                }
+            })
+
+
+            // clear control
+            const clearControl = new PanelControl();
+            clearControl.imgUrl = '/static/images/clear.png';
+            clearControl.click = function() {
+                self.clear();
+            }
+            clearControl.addTo(map);
+
+            // moving control
+            const movingControl = new PanelControl();
+            movingControl.imgUrl = '/static/images/play.png';
+            movingControl.click = function() {
+                if(!self.map.hasLayer(self.trackMarker)) {
+                    self.dynamicTrajectory();
+                }
+
+                this.imgUrl = this.flag ? '/static/images/play.png' : '/static/images/pause.png';
+                this.updateUrl();
+                if(this.flag) {
+                    self.trackMarker.start();
+                } else {
+                    self.trackMarker.pause();
+                }
+            }
+            movingControl.addTo(map);
+
+            // geoJSON control
+            const geoControl = new PanelControl();
+            geoControl.imgUrl = '/static/images/geo.png';
+            geoControl.click = function() {
+                self.geoJson();
+            }
+            geoControl.addTo(map);
+
+            // drawCircle control
+            const circleControl = new PanelControl();
+            circleControl.imgUrl = '/static/images/drawCircle.png';
+            circleControl.click = function() {
+                self.drawCircle();
+            }
+            circleControl.addTo(map);
+
+            //antPath control
+            const antControl = new PanelControl();
+            antControl.imgUrl = '/static/images/path.png';
+            antControl.click = function() {
+                self.antPath();
+            }
+            antControl.addTo(map);
+
+            //heatmap control
+            const heatmapControl = new PanelControl();
+            heatmapControl.imgUrl = '/static/images/heatmap.png';
+            heatmapControl.click = function() {
+                self.heatmap();
+            }
+            heatmapControl.addTo(map);
+
+            //ranging control
+            const rangingControl = new PanelControl();
+            rangingControl.imgUrl = '/static/images/ranging.png';
+            rangingControl.click = function() {
+                self.ranging();
+            }
+            rangingControl.addTo(map);
+
+            //DrawLine control
+            const trackControl = new PanelControl();
+            trackControl.imgUrl = '/static/images/track.png';
+            trackControl.click = function() {
+                self.trackLine();
+            }
+            trackControl.addTo(map);
+
 
 // **************************end***************************
         })
@@ -198,22 +287,31 @@ export default {
             const antLatlngs = [];
             let linePath = [];
             // Usethe constructor...
-            let antPolyline = new L.Polyline.AntPath(antLatlngs, {color: 'red', weight: 5});
+            let antPolyline = new L.Polyline.AntPath(antLatlngs,
+                {
+                    color: '#f68a8c',
+                    weight: 5,
+                    pulseColor: '#ff0000',
+                    delay:454,
+                    dashArray: [20, 24]
+                });
             antPolyline.addTo(this.map);
-            this.map.on('click', function(ev) {
+            this.map.on('click', (ev) => {
                 let latlng = L.latLng(ev.latlng.lat, ev.latlng.lng);
                 addPath(latlng)
-                linePath = [antLatlngs[antLatlngs.length - 1]]
+                linePath = [antLatlngs[antLatlngs.length - 1]];
+                this.map.on('mousemove', (ev) => {
+                    let latlng = L.latLng(ev.latlng.lat, ev.latlng.lng);
+                    drawLine(latlng);
+                })
             })
-            this.map.on('mousemove', function(ev) {
-                let latlng = L.latLng(ev.latlng.lat, ev.latlng.lng);
-                drawLine(latlng)
-            })
+
             function addPath(latlng) {
                 antLatlngs.push(latlng);
                 antPolyline.setLatLngs(antLatlngs);
             }
-            const polyline = L.polyline(linePath, { renderer: self.renderer}).addTo(this.map);
+            const polyline = L.polyline(linePath).addTo(this.map);
+            this.tempLine = polyline;
             function drawLine(latlng) {
                 if(linePath.length === 1) {
                     linePath.push(latlng)
@@ -225,57 +323,54 @@ export default {
 
         },
         ranging() {
-            this.removeEvent()
+            this.removeEvent();
             this.map.dragging.disable();
             const self = this;
             const latlngs = [];
-            const polyline = L.polyline(latlngs, { renderer: self.renderer}).addTo(this.map);
+            const polyline = L.polyline(latlngs).addTo(this.map);
             this.map.on('click', function(ev) {
                 const latlng = L.latLng(ev.latlng.lat, ev.latlng.lng);
                 polyline.addLatLng(latlng);
                 var flag = true;
-                var resLatLngs = polyline.getLatLngs()
+                var resLatLngs = polyline.getLatLngs();
                 self.marker.addTo(self.map);
                 self.map.on('mousemove', function(e) {
                     self.marker.setLatLng(L.latLng(e.latlng.lat, e.latlng.lng))
                     const distanceText = L.CRS.EPSG3857.distance(latlng, L.latLng(e.latlng.lat, e.latlng.lng))
                     if(distanceText) {
-                        self.marker.bindTooltip((distanceText/1000).toFixed(2)+'km').openTooltip();
-                        self.marker.unbindPopup()
-                        //self.marker.bindPopup((distanceText/1000).toFixed(2)+'km')
+                        self.marker.bindPopup((distanceText/1000).toFixed(2)+'km').openPopup();
                     }
 
                     if(flag) {
-                        resLatLngs.push(L.latLng(e.latlng.lat, e.latlng.lng))
-                        polyline.setLatLngs(resLatLngs)
+                        resLatLngs.push(L.latLng(e.latlng.lat, e.latlng.lng));
+                        polyline.setLatLngs(resLatLngs);
                         flag = false;
                     } else {
-                        resLatLngs.splice(-1,1,L.latLng(e.latlng.lat, e.latlng.lng))
-                        polyline.setLatLngs(resLatLngs)
+                        resLatLngs.splice(-1,1,L.latLng(e.latlng.lat, e.latlng.lng));
+                        polyline.setLatLngs(resLatLngs);
                     }
                 })
                 self.marker.on('click', function() {
                     self.map.dragging.enable();
-                    self.removeEvent()
+                    self.removeEvent();
+                    self.marker.openPopup();
                 })
             });
         },
-        drawArrowLine() {
-            const self = this;
-
+        trackLine() {
             var multiCoords = [
                 [[31.5468, 116], [33.8068, 118.1318], [34.1242, 119.6699]]
             ];
-            var plArray = [];
+            const plArray = [];
             for(var i=0; i<multiCoords.length; i++) {
-                plArray.push(L.polyline(multiCoords[i]).addTo(self.map));
+                plArray.push(L.polyline(multiCoords[i]).addTo(this.map));
             }
             L.polylineDecorator(multiCoords, {
                 patterns: [
                     {offset: 25, repeat: 100, symbol: L.Symbol.arrowHead({pixelSize: 15, pathOptions: {fillOpacity: 1, weight: 0}})}
                 ]
-            }).addTo(self.map);
-            const swoopy = L.swoopyArrow(this.center, [33,119], {
+            }).addTo(this.map);
+            const swoopy = L.swoopyArrow(multiCoords[0][0], multiCoords[0][2], {
                 annotation: 'Hi!',
                 fontSize: 16,
                 iconAnchor: [20, 10],
@@ -283,10 +378,11 @@ export default {
                 color: '#ff55aa',
                 weight: '2',
             }).addTo(this.map);
+            this.map.fitBounds(plArray[plArray.length - 1].getBounds());
 
         },
         drawPolygon() {
-            this.removeEvent()
+            this.removeEvent();
             var latlngs = [[37, 119.05],[41, 119.03],[41, 112.05],[37, 112.04]];
             var polygon = L.polygon(latlngs, {color: 'red'}).addTo(this.map);
             this.map.fitBounds(polygon.getBounds());
@@ -294,10 +390,10 @@ export default {
         clear() {
             this.removeEvent()
             const self = this;
-            this.map.dragging.enable()
+            this.map.dragging.enable();
             this.map.eachLayer(function(layer) {
                 if(!layer._container) {
-                    self.map.removeLayer(layer)
+                    self.map.removeLayer(layer);
                 }
             })
         },
@@ -322,11 +418,16 @@ export default {
                     } else {
                         circleR = 0;
                     }
-                    circleGroup[i].setRadius(circleR)
+                    circleGroup[i].setRadius(circleR);
                 }, 300)
             }
         },
         heatmap() {
+            if(this.map.hasLayer(this.heatmapLayer)) {
+                const data = createData(30000, 0.015);
+                this.heatmapLayer.setData(data);
+                return;
+            }
             this.removeEvent()
             const statesData = createData(20000, 0.015);
             const heatmapConfig = {
@@ -348,40 +449,18 @@ export default {
                 }
             }
             const heatmapLayer = new HeatmapOverlay(heatmapConfig);
+            this.heatmapLayer = heatmapLayer;
             heatmapLayer.addTo(this.map);
             heatmapLayer.setData(statesData);
 
-            // 生成热力图数据
-            this.map.on('click ', () => {
-                this.map.dragging.enable()
-                const data = createData(30000, 0.015);
-                heatmapLayer.setData(data);
-            })
 
-        },
-        customLine() {
-            this.removeEvent()
-            this.map.on('click', (ev) => {
-                const latlng = L.latLng(ev.latlng.lat, ev.latlng.lng);
-                const latlngs = [];
-                const polyline = L.polyline(latlngs, { renderer: self.renderer}).addTo(this.map);
-                polyline.addLatLng(latlng);
-                var flag = true;
-                var resLatLngs = polyline.getLatLngs()
-                this.map.on('mousemove', function(e) {
-                    resLatLngs.push(L.latLng(e.latlng.lat, e.latlng.lng))
-                    polyline.setLatLngs(resLatLngs)
-                    flag = false;
-                    polyline.setLatLngs(resLatLngs)
-                })
-            })
         },
         geoJson() {
             const loading= this.$loading({
                 lock: true,
                 text: 'Loading',
                 spinner: 'el-icon-loading',
-                background: 'rgba(0, 0, 0, 0.6)'
+                background: 'rgba(0, 0, 0, 0.4)'
             });
             this.$http.get('http://127.0.0.1:3000/').then((res) => {
                 loading.close();
@@ -390,7 +469,10 @@ export default {
 
                 var myLayer = L.geoJSON().addTo(this.map);
                 myLayer.addData(geojsonFeature);
-                this.map.setView([32.009323, 118.799246], 5)
+                this.map.setView([32.009323, 118.799246], 5);
+            }, () => {
+                loading.close();
+                this.$message.error('服务异常');
             })
         },
         removeEvent() {
@@ -407,7 +489,7 @@ export default {
         handleLocate() {
             const map = this.map;
             var geolocation = new BMap.Geolocation();
-            geolocation.getCurrentPosition(function(r){
+            geolocation.getCurrentPosition(function(r) {
                 if(this.getStatus() == BMAP_STATUS_SUCCESS){
                     var mk = new BMap.Marker(r.point);
                     map.panTo(mk.point);
@@ -415,61 +497,47 @@ export default {
                 else {
                     alert('failed'+this.getStatus());
                 }
-            },{enableHighAccuracy: true})
+            },{enableHighAccuracy: true});
         },
         dynamicTrajectory() {
             if(this.map.hasLayer(this.trackMarker)) {
                 this.map.removeLayer(this.trackMarker);
                 return;
             }
-            const self = this;
-            const markerPos = [[32.050943,118.748092], [32.101855,118.817945], [32.035762, 118.820244], [32.004903,118.878886], [31.960309, 118.776263], [31.981383, 118.854739]]
+            const parisKievLL = [[32.050943,118.748092], [32.101855,118.817945], [32.035762, 118.820244], [32.004903,118.878886], [31.960309, 118.776263], [31.981383, 118.854739]]
 
-            // add marker
-            for(let i = 0; i < markerPos.length; i++) {
-                L.marker(markerPos[i], {
-                    icon: this.markerIcon
+            for(let i = 0; i < parisKievLL.length; i++) {
+                const icon = L.icon({
+                    iconUrl: '/static/images/marker.png',
+                    iconSize: [19, 25],
+                });
+                L.marker(parisKievLL[i], {
+                    icon,
                 }).addTo(this.map);
             }
             const markers = [];
 
             // add animated marker
-            var parisKievLL = markerPos;
-            var trackMarker = L.Marker.movingMarker(parisKievLL, [2000,2000,2000,2000,2000], {icon: this.pig}).addTo(self.map);
-            L.polyline(parisKievLL, {color: 'red'}).addTo(self.map);
-            trackMarker.once('click', function () {
-                trackMarker.start();
-                trackMarker.closePopup();
-                trackMarker.unbindPopup();
-                trackMarker.on('click', function() {
-                    if (trackMarker.isRunning()) {
-                        trackMarker.pause();
-                    } else {
-                        trackMarker.start();
-                    }
-                });
-                setTimeout(function() {
-                    trackMarker.bindPopup('<b>Click me to pause !</b>').openPopup();
-                }, 2000);
-            });
 
-            trackMarker.bindPopup('<b>Click me to start !</b>').openPopup();
-            this.trackMarker = trackMarker;
+            const polyline = L.polyline(parisKievLL, {color: 'orange'}).addTo(this.map);
+            this.map.fitBounds(polyline.getBounds());
+            setTimeout(() => {
+                this.trackMarker = L.Marker.movingMarker(
+                    parisKievLL,
+                    [2000, 2000, 2000, 2000, 2000],
+                    {
+                        icon: this.monvingIcon,
+                        autostart: true,
+                    })
+                .addTo(this.map);
+            }, 200);
+
         },
-        test() {
-            if (this.trackMarker.isRunning()) {
-                this.trackMarker.pause();
-                this.state = 'start';
-            } else {
-                this.trackMarker.start();
-                this.state = 'pause';
-            }
-        }
     }
 };
 </script>
 
-<style>
+<style lang="scss">
 .wrapper {
     position: relative;
 }
@@ -483,5 +551,26 @@ export default {
 }
 .tools .el-button {
     margin-bottom: 8px;
+}
+.leaflet-control-custom  {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    cursor: pointer;
+    &:hover {
+        transform: scale(1.1);
+    }
+    .control-icon {
+        width: 24px;
+        height: 24px;
+        display: inline-block;
+        padding: 3px;
+        border: 2px solid #ddd;
+        background: #f4f4f4;
+        &:hover {
+            transform: scale(1.1);
+        }
+    }
 }
 </style>
