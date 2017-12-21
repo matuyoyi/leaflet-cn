@@ -11,11 +11,13 @@ import polylineMarkerIcon from '../assets/polylineMarkerIcon.png';
 import { AntPath, antPath } from 'leaflet-ant-path';
 import '../../static/js/leaflet-BMap.js';
 import '../../static/js/BMapAPI.js';
-import '../../static/js/animatedMarker.js';
+import '../../static/js/movingMarker.js';
+import '../../static/js/snakePolyline.js';
 import 'lodash';
 
 import 'leaflet-swoopy';
 import 'leaflet-polylinedecorator';
+import mockData from '../../static/mock/route.json';
 
 
 
@@ -138,11 +140,9 @@ export default {
                 hardedge: new L.TileLayer.BaiduLayer("CustomStyle.Map.hardedge"),
                 tianwang: new L.TileLayer.BaiduLayer("tianwang.Map"),
             };
-            const marker = L.marker(center, {
+            this.marker = L.marker(center, {
                 icon: markerIcon,
-                riseOnHover: true,
             })
-            this.marker = marker;
 
             options.layers = [baseMaps.Normal];
             const map = L.map("map", options);
@@ -276,6 +276,10 @@ export default {
             trackControl.addTo(map);
 
 
+            L.polyline(mockData.route, {snakingSpeed: 300})
+                .addTo(map).snakeIn();
+
+
 // **************************end***************************
         })
     },
@@ -327,18 +331,33 @@ export default {
             this.map.dragging.disable();
             const self = this;
             const latlngs = [];
-            const polyline = L.polyline(latlngs).addTo(this.map);
+            const polyline = L.polyline(latlngs, { color: '#ed3f14', opacity: 0.5 }).addTo(this.map);
             this.map.on('click', function(ev) {
                 const latlng = L.latLng(ev.latlng.lat, ev.latlng.lng);
                 polyline.addLatLng(latlng);
                 var flag = true;
                 var resLatLngs = polyline.getLatLngs();
-                self.marker.addTo(self.map);
+                const icon = L.icon({
+                    iconUrl: '/static/images/rangingMarker.png',
+                    iconSize: [34, 32],
+                })
+                const startMarker = L.marker(latlng, {
+                    icon,
+                }).addTo(self.map);
+                const endMarker = L.marker([0, 0], {
+                    icon,
+                }).addTo(self.map);
+                endMarker.once('mousedown', function() {
+                    polyline.setStyle({
+                        opacity: 0.7
+                    })
+                    self.removeEvent();
+                })
                 self.map.on('mousemove', function(e) {
-                    self.marker.setLatLng(L.latLng(e.latlng.lat, e.latlng.lng))
+                    endMarker.setLatLng(L.latLng(e.latlng.lat, e.latlng.lng))
                     const distanceText = L.CRS.EPSG3857.distance(latlng, L.latLng(e.latlng.lat, e.latlng.lng))
                     if(distanceText) {
-                        self.marker.bindPopup((distanceText/1000).toFixed(2)+'km').openPopup();
+                        endMarker.bindPopup((distanceText/1000).toFixed(2)+'km').openPopup();
                     }
 
                     if(flag) {
@@ -350,11 +369,7 @@ export default {
                         polyline.setLatLngs(resLatLngs);
                     }
                 })
-                self.marker.on('click', function() {
-                    self.map.dragging.enable();
-                    self.removeEvent();
-                    self.marker.openPopup();
-                })
+
             });
         },
         trackLine() {
