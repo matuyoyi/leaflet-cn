@@ -1,5 +1,26 @@
 <template>
     <div style="width:100%;height:100%" class="wrapper">
+        <div class="panel">
+            <div class="search-area">
+                <input class="search-input"></input>
+                <span class="search-icon"></span>
+            </div>
+
+            <div class="point-panel">
+                <ul class="point-list">
+                    <li class="point-item" :class="{'active': currentItem === item.id}"
+                        v-for="(item, index) in mockData"
+                        :key="item.id"
+                        @click="handleClick(item.id)">
+                        <div class="badge">{{index + 1}}</div>
+                        <div class="cont">
+                            <p :title="item.label">{{item.label}}</p>
+                            <p :title="item.address">{{item.address}}</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
         <div id="map" style="width:100%;height:100%"></div>
     </div>
 </template>
@@ -95,7 +116,24 @@ function animateFun() {
 export default {
     data() {
         return {
-
+            currentItem: '',
+            mockData: [{
+                id: '1ac4983ifj34f34',
+                label: '七天酒店',
+                address: '南京市秦淮区xx街道',
+                lnglat: {lat: 31.89, lng: 118.112},
+            }, {
+                id: '2bv434j0934uj50',
+                label: '网鱼网咖',
+                address: '南京市鼓楼区xx街道',
+                lnglat: {lat: 31.99, lng: 119.012},
+            }, {
+                id: '3cj4083jt93m045',
+                label: '玄武湖',
+                address: '南京市玄武区玄武巷1号(近洞庭路)',
+                lnglat: {lat: 32.39, lng: 118.5022},
+            }],
+            markerList: [],
         }
     },
     mounted() {
@@ -276,9 +314,9 @@ export default {
             trackControl.addTo(map);
 
 
-            L.polyline(mockData.route, {snakingSpeed: 300})
-                .addTo(map).snakeIn();
 
+
+            this.addPointToMap(this.mockData);
 
 // **************************end***************************
         })
@@ -514,6 +552,68 @@ export default {
                 }
             },{enableHighAccuracy: true});
         },
+        addPointToMap(data) {
+            const pointList = [];
+            _.each(data, (item, index) => {
+                const lnglat = [item.lnglat.lat, item.lnglat.lng];
+                pointList.push(lnglat);
+                const myIcon = L.divIcon({
+                    iconSize: [19, 25],
+                    className: 'my-div-icon',
+                    html: index + 1,
+                });
+                const marker = L.marker(lnglat, {
+                    icon: myIcon,
+                })
+                marker.bindPopup(`<p>酒店编号：${item.id}</p><p>酒店名称：${item.name}</p>`);
+                marker.on('click', function() {
+                    this.openPopup()
+                    this.map.panTo(this.getLatLng());
+                })
+                this.markerList.push({
+                    id: item.id,
+                    marker,
+                    num: item.num,
+                    name: item.name,
+                });
+            })
+            this.map.fitBounds(L.polygon(pointList).getBounds());
+            setTimeout(() => {
+                let arr = [];
+                for (let i = 0; i < pointList.length; i++) {
+                    let a;
+                    if(i + 1 === pointList.length) {
+                        arr.push(this.markerList[i].marker);
+                    } else {
+                        arr.push(this.markerList[i].marker);
+                        arr.push(
+                            L.polyline([pointList[i], pointList[i + 1]], {
+                                snakingSpeed: 1000,
+                                color: '#e33c00',
+                                opacity: 0.6
+                            })
+                        );
+                        arr.push(this.markerList[i+1].marker);
+                    }
+                }
+                var route = L.featureGroup(arr).addTo(this.map);
+                let index = 1,
+                i = 0;
+
+                route.on('snake', (ev) => {
+                    if(index % 2 !== 0) {
+                        i++
+                        if(i < this.markerList.length) {
+                            this.map.panTo(this.markerList[i].marker.getLatLng())
+                        }
+                    }
+
+                    index++
+                });
+
+                route.snakeIn();
+            }, 1500);
+        },
         dynamicTrajectory() {
             if(this.map.hasLayer(this.trackMarker)) {
                 this.map.removeLayer(this.trackMarker);
@@ -548,6 +648,20 @@ export default {
             }, 200);
 
         },
+        handleClick(id) {
+            this.currentItem = id;
+            _.each(this.markerList, (item) => {
+                if(item.id === id) {
+                    item.marker.openPopup()
+                    this.map.panTo(item.marker.getLatLng(), {
+                        animated: true,
+                        duration: .5,
+                    })
+                } else {
+                    item.marker.closePopup();
+                }
+            })
+        },
     }
 };
 </script>
@@ -555,6 +669,95 @@ export default {
 <style lang="scss">
 .wrapper {
     position: relative;
+    &.fullscreen {
+        position: absolute;
+        z-index: 10000;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        height: 100%;
+    }
+    .panel {
+        position: absolute;
+        z-index: 899;
+        left: 56px;
+        top: 56px;
+        bottom: 180px;
+        width: 306px;
+        padding: 16px 8px 8px;
+        background: #fff;
+        box-shadow: 0px 4px 18px 0px rgba(0, 0, 0, 0.48);
+        .search-area {
+            position: relative;
+            width: 100%;
+            height: 32px;
+            .search-input {
+                width: 100%;
+                line-height: 30px;
+                padding: 0 30px 0 6px;
+                box-sizing: border-box;
+                outline: none;
+                border: 1px solid #dcdfe6;
+                border-radius: 4px;
+                &:hover  {
+                    border-color: #c0c4cc;
+                }
+                &.active, &:focus {
+                    border-color: #e33C00;
+                    &+.search-icon {
+                        background-image: url('/static/images/search-icon-focus.png')
+                    }
+                }
+            }
+            .search-icon {
+                position: absolute;
+                top: 0;
+                right: 0;
+                display: inline-block;
+                width: 30px;
+                height: 100%;
+                background: url('/static/images/search-icon.png') no-repeat center;
+                background-size: 60%;
+            }
+        }
+        .point-panel {
+            height: calc(100% - 32px);
+            overflow: auto;
+            .point-list {
+                margin-top: 8px;
+                .point-item {
+                    display: flex;
+                    padding: 16px;
+                    cursor: pointer;
+                    &.active, &:hover {
+                        background-color: #e3e4e5;
+                    }
+                    .badge {
+                        width: 28px;
+                        height: 30px;
+                        margin-right: 8px;
+                        background: url('/static/images/badge.png') no-repeat center;
+                        background-size: 100%;
+                        color: #fff;
+                        text-align: center;
+                        line-height: 24px;
+                        font-size: 12px;
+                    }
+                    .cont {
+                        max-width: calc(100% - 38px);
+                        overflow: hidden;
+                        font-size: 14px;
+                        p {
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 .tools {
     position: absolute;
@@ -587,5 +790,12 @@ export default {
             transform: scale(1.1);
         }
     }
+}
+.my-div-icon {
+    background: url('/static/images/marker.png') center no-repeat;
+    line-height: 24px;
+    color: #fff;
+    text-align: center;
+    margin-top: -25px!important;
 }
 </style>
